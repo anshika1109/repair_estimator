@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#E85D04">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Spark Homes Estimator</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+:root {
+  --spark-orange: #E85D04;
+  --spark-dark: #1a1a2e;
+  --spark-light: #f8f9fa;
+  --spark-gray: #6b7280;
+  --spark-success: #10b981;
+  --spark-danger: #ef4444;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: var(--spark-light); color: #1f2937; padding-bottom: 70px; }
+</style>
+</head>
+<body>
+<script>
+// Force unregister all service workers immediately
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+    for (var i = 0; i < registrations.length; i++) {
+      registrations[i].unregister();
+    }
+  });
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({type: 'SKIP_WAITING'});
+  }
+}
+// Clear all caches
+if ('caches' in window) {
+  caches.keys().then(function(names) {
+    for (var i = 0; i < names.length; i++) { caches.delete(names[i]); }
+  });
+}
+</script>
+<!-- Header with running total -->
+<header id="app-header" style="background: var(--spark-dark); color: white; padding: 12px 16px; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;">
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <svg width="28" height="28" viewBox="0 0 100 100"><path d="M50 5 L85 30 L85 70 L50 95 L15 70 L15 30 Z" fill="#E85D04"/><text x="50" y="62" text-anchor="middle" fill="white" font-size="36" font-weight="bold">S</text></svg>
+    <span style="font-weight: 700; font-size: 16px;">Spark Estimator</span>
+  </div>
+  <div id="header-total" style="background: var(--spark-orange); padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 15px;">$0.00</div>
+</header>
+
+<!-- Progress bar -->
+<div id="progress-container" style="background: #e5e7eb; height: 6px; width: 100%; position: sticky; top: 56px; z-index: 99;">
+  <div id="progress-bar" style="background: var(--spark-success); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+</div>
+<div id="progress-text" style="text-align: center; font-size: 12px; color: var(--spark-gray); padding: 4px 0; position: sticky; top: 62px; z-index: 99; background: var(--spark-light);">0% Complete</div>
+
+<!-- Tab Content Areas -->
+<main id="main-content" style="padding: 12px; max-width: 600px; margin: 0 auto;"></main>
+
+<!-- Bottom Navigation -->
+<nav style="position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e5e7eb; display: flex; z-index: 200; padding-bottom: env(safe-area-inset-bottom);">
+  <button class="nav-btn active" data-tab="projects" onclick="switchTab('projects')">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-5l-2-2H5a2 2 0 00-2 2z"/></svg>
+    <span>Projects</span>
+  </button>
+  <button class="nav-btn" data-tab="estimate" onclick="switchTab('estimate')">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+    <span>Estimate</span>
+  </button>
+  <button class="nav-btn" data-tab="photos" onclick="switchTab('photos')">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+    <span>Photos</span>
+  </button>
+  <button class="nav-btn" data-tab="deal" onclick="switchTab('deal')">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    <span>Deal</span>
+  </button>
+  <button class="nav-btn" data-tab="export" onclick="switchTab('export')">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+    <span>Export</span>
+  </button>
+</nav>
+<style>
+.nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 8px 4px; border: none; background: none; color: var(--spark-gray); font-size: 11px; gap: 2px; cursor: pointer; transition: color 0.2s; }
+.nav-btn.active { color: var(--spark-orange); }
+.nav-btn svg { width: 22px; height: 22px; }
+.card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.btn { padding: 12px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; font-size: 14px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+.btn-primary { background: var(--spark-orange); color: white; }
+.btn-primary:active { transform: scale(0.97); opacity: 0.9; }
+.btn-secondary { background: #f3f4f6; color: #374151; }
+.btn-danger { background: var(--spark-danger); color: white; }
+.btn-sm { padding: 8px 14px; font-size: 13px; }
+.btn-block { width: 100%; justify-content: center; }
+.input { width: 100%; padding: 10px 14px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: border-color 0.2s; }
+.input:focus { outline: none; border-color: var(--spark-orange); }
+.group-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; cursor: pointer; border-bottom: 1px solid #f3f4f6; }
+.group-header h3 { font-size: 14px; font-weight: 600; margin: 0; }
+.group-items { padding: 8px 0; }
+.line-item { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid #f9fafb; }
+.line-item-name { font-size: 13px; font-weight: 500; }
+.line-item-unit { font-size: 11px; color: var(--spark-gray); }
+.qty-input { width: 60px; padding: 6px 8px; border: 1.5px solid #e5e7eb; border-radius: 6px; text-align: center; font-size: 14px; -moz-appearance: textfield; }
+.qty-input::-webkit-outer-spin-button, .qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.qty-input:focus { outline: none; border-color: var(--spark-orange); }
+.line-total { font-size: 13px; font-weight: 600; color: var(--spark-dark); min-width: 70px; text-align: right; }
+.section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--spark-orange); margin: 16px 0 8px; }
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge-green { background: #d1fae5; color: #065f46; }
+.badge-orange { background: #ffedd5; color: #9a3412; }
+.room-chip { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 20px; background: #f3f4f6; font-size: 13px; margin: 4px; cursor: pointer; border: 1.5px solid transparent; }
+.room-chip.active { border-color: var(--spark-orange); background: #fff7ed; }
+.room-chip .remove-room { color: var(--spark-danger); font-weight: 700; margin-left: 4px; }
+.no-action-btn { padding: 6px 12px; border-radius: 6px; border: 1.5px solid #e5e7eb; background: white; font-size: 12px; cursor: pointer; }
+.no-action-btn.checked { background: var(--spark-success); color: white; border-color: var(--spark-success); }
+.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.photo-thumb { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; }
+.photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.photo-thumb .remove-photo { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal { background: white; border-radius: 16px; padding: 24px; width: 100%; max-width: 400px; }
+.chevron { transition: transform 0.2s; }
+.chevron.open { transform: rotate(90deg); }
+.hidden { display: none !important; }
+.section-tabs { display: flex; overflow-x: auto; gap: 0; background: white; border-bottom: 2px solid #e5e7eb; position: sticky; top: 74px; z-index: 98; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.section-tabs::-webkit-scrollbar { display: none; }
+.section-tab { flex-shrink: 0; padding: 12px 16px; border: none; background: none; font-size: 13px; font-weight: 500; color: var(--spark-gray); cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; transition: all 0.2s; }
+.section-tab.active { color: var(--spark-orange); border-bottom-color: var(--spark-orange); font-weight: 700; }
+.group-header-new { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor: pointer; background: #f8fafc; border-bottom: 1px solid #f1f5f9; }
+.group-header-new h3 { font-size: 15px; font-weight: 600; margin: 0; }
+.group-items-new { }
+.line-item-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #f1f5f9; transition: background 0.15s; cursor: pointer; }
+.line-item-card.selected { background: #fff7ed; }
+.line-item-card.no-action-selected { background: #f0fdf4; }
+.item-radio { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #d1d5db; flex-shrink: 0; transition: all 0.2s; position: relative; }
+.item-radio.checked { border-color: var(--spark-orange); background: var(--spark-orange); }
+.item-radio.checked::after { content: '✓'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 12px; font-weight: 700; }
+.no-action-selected .item-radio.checked { border-color: var(--spark-success); background: var(--spark-success); }
+.item-info { flex: 1; min-width: 0; }
+.item-name { font-size: 14px; font-weight: 500; color: #1f2937; }
+.item-cost { font-size: 12px; color: var(--spark-gray); margin-top: 2px; }
+.item-qty-area { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.item-line-total { font-size: 12px; font-weight: 600; color: var(--spark-orange); }
+.nav-buttons { display: flex; gap: 12px; padding: 16px 0; margin-top: 8px; }
+.nav-prev { flex: 1; justify-content: center; }
+.nav-next { flex: 1; justify-content: center; }
+.nav-buttons .disabled { opacity: 0.4; pointer-events: none; }
+</style>
+<script>
+// ========== PRICING DATA ==========
+const DEFAULT_PRICES = [
+  {id:"ig-01",name:"Refinish Hardwood Floor",cost:2.35,unit:"sqft"},
+  {id:"ig-02",name:"New Hardwoods 1.5\"",cost:10.00,unit:"sqft"},
+  {id:"ig-03",name:"New Hardwoods 2\"",cost:4.75,unit:"sqft"},
+  {id:"ig-04",name:"Hardwood Splicing",cost:8.40,unit:"sqft"},
+  {id:"ig-05",name:"Vinyl Plank",cost:2.50,unit:"sqft"},
+  {id:"ig-06",name:"Carpet",cost:1.90,unit:"sqft"},
+  {id:"ig-07",name:"Interior Paint — 2 Tone",cost:2.95,unit:"sqft"},
+  {id:"ig-08",name:"Drywall Repair",cost:900.00,unit:"1,000 sqft"},
+  {id:"ig-09",name:"Wallpaper Removal",cost:250.00,unit:"room"},
+  {id:"ig-10",name:"Interior Door — Hollow Slab",cost:125.00,unit:"ea."},
+  {id:"ig-11",name:"Interior Door Hardware (Knob + Hinges + Labor)",cost:25.00,unit:"ea."},
+  {id:"ig-12",name:"Bifold Door with Framing",cost:400.00,unit:"ea."},
+  {id:"ig-13",name:"Interior Door — Pre-hung",cost:200.00,unit:"ea."},
+  {id:"ig-14",name:"Front Entry Door",cost:475.00,unit:"ea."},
+  {id:"ig-15",name:"Front Entry Door Hardware",cost:80.00,unit:"ea."},
+  {id:"ig-16",name:"Exterior Door Hardware",cost:75.00,unit:"handle"},
+  {id:"ig-17",name:"Exterior Insulated Side Door (Installed)",cost:500.00,unit:"ea."},
+  {id:"ig-18",name:"Sliding Glass Door",cost:1025.00,unit:"ea."},
+  {id:"ig-19",name:"Trim Out (Casing, Crown, Baseboard)",cost:3.75,unit:"LF"},
+  {id:"ig-20",name:"MISC / Punch List",cost:2650.00,unit:"flat"},
+  {id:"ig-21",name:"Finish Out Labor",cost:1350.00,unit:"flat"},
+  {id:"ig-22",name:"Light Fixtures",cost:70.00,unit:"100 sqft"},
+  {id:"ig-23",name:"Bedbug Spray / Heat Treat",cost:475.00,unit:"ea."},
+  {id:"ig-24",name:"Termite Treatment",cost:650.00,unit:"ea."},
+  {id:"ig-25",name:"Demo",cost:1375.00,unit:"variable"},
+  {id:"ig-26",name:"Haul Off",cost:725.00,unit:"load"},
+  {id:"ig-27",name:"Final Cleaning",cost:325.00,unit:"flat"},
+  {id:"ig-28",name:"Staging",cost:0.90,unit:"sqft"},
+  {id:"kt-01",name:"Hinges and Pulls",cost:275.00,unit:"kitchen"},
+  {id:"kt-02",name:"Cabinets Uppers",cost:125.00,unit:"LF"},
+  {id:"kt-03",name:"Cabinets Lowers",cost:150.00,unit:"LF"},
+  {id:"kt-04",name:"Cabinet Door Faces Only",cost:80.00,unit:"door"},
+  {id:"kt-05",name:"Cabinets (Labor & Paint)",cost:1100.00,unit:"kitchen"},
+  {id:"kt-06",name:"Granite + 4\" Splash Guard",cost:40.00,unit:"LF"},
+  {id:"kt-07",name:"Backsplash",cost:725.00,unit:"house"},
+  {id:"kt-08",name:"Misc Woodwork",cost:500.00,unit:"variable"},
+  {id:"kt-09",name:"Tile — Large Areas",cost:6.45,unit:"sqft"},
+  {id:"kt-10",name:"Tile — Small Areas",cost:10.00,unit:"sqft"},
+  {id:"kt-11",name:"Undermount Kitchen Sink",cost:325.00,unit:"ea."},
+  {id:"kt-12",name:"Microwave / Hood",cost:500.00,unit:"ea."},
+  {id:"kt-13",name:"Range",cost:725.00,unit:"ea."},
+  {id:"kt-14",name:"Wall Oven",cost:1075.00,unit:"ea."},
+  {id:"kt-15",name:"Cooktop",cost:550.00,unit:"ea."},
+  {id:"kt-16",name:"Dishwasher",cost:575.00,unit:"ea."},
+  {id:"kt-17",name:"Fridge",cost:1175.00,unit:"ea."},
+  {id:"ba-01",name:"Granite ($/LF)",cost:35.00,unit:"LF"},
+  {id:"ba-02",name:"New Bottom Vanity",cost:125.00,unit:"LF"},
+  {id:"ba-03",name:"Home Depot Vanity w/ Sink (18\")",cost:225.00,unit:"ea."},
+  {id:"ba-04",name:"Toilet",cost:150.00,unit:"ea."},
+  {id:"ba-05",name:"Tile — Large Areas",cost:5.80,unit:"sqft"},
+  {id:"ba-06",name:"Tile — Small Areas",cost:10.00,unit:"sqft"},
+  {id:"ba-07",name:"Reglaze Tub or Chemical Clean",cost:350.00,unit:"ea."},
+  {id:"ba-08",name:"Reglaze Tub + Surround",cost:750.00,unit:"ea."},
+  {id:"ba-09",name:"Reglaze Shower",cost:1325.00,unit:"ea."},
+  {id:"ba-10",name:"Tiled Shower Tear Out + Tile Install",cost:3100.00,unit:"ea."},
+  {id:"ba-11",name:"Tub Tile Surround Tear Out + Tile Install (incl. tub)",cost:2250.00,unit:"ea."},
+  {id:"ba-12",name:"Shower Plastic Insert Tear Out + New Insert",cost:825.00,unit:"ea."},
+  {id:"ba-13",name:"Tub Tear Out + New Insert & Tub",cost:1575.00,unit:"ea."},
+  {id:"ba-14",name:"Undermount Sink",cost:150.00,unit:"ea."},
+  {id:"ba-15",name:"Mirror",cost:200.00,unit:"ea."},
+  {id:"ba-16",name:"HVL (needed if no window)",cost:275.00,unit:"ea."},
+  {id:"as-01",name:"Furnace",cost:3350.00,unit:"ea."},
+  {id:"as-02",name:"Condensing Unit",cost:3300.00,unit:"ea."},
+  {id:"as-03",name:"Package Unit",cost:4700.00,unit:"ea."},
+  {id:"as-04",name:"A-Coil (if no condensing unit)",cost:1625.00,unit:"ea."},
+  {id:"as-05",name:"Ducting (if NO HVAC)",cost:3200.00,unit:"ea."},
+  {id:"as-06",name:"Duct Cleaning — Floor Vents",cost:550.00,unit:"ea."},
+  {id:"as-07",name:"Window Unit Replacement 220",cost:575.00,unit:"ea."},
+  {id:"as-08",name:"Hot Water Heater w/ Expansion Tank",cost:1425.00,unit:"ea."},
+  {id:"as-09",name:"Hot Water Heater Expansion Tank Only",cost:200.00,unit:"ea."},
+  {id:"as-10",name:"Switches / Outlets",cost:1400.00,unit:"house"},
+  {id:"as-11",name:"Standard Electrical",cost:1650.00,unit:"house"},
+  {id:"as-12",name:"Subfloor",cost:8.20,unit:"sqft"},
+  {id:"as-13",name:"Framing",cost:950.00,unit:"variable"},
+  {id:"as-14",name:"Structural (Pier)",cost:375.00,unit:"pier"},
+  {id:"as-15",name:"Structural Foam Injection",cost:5.85,unit:"sqft of affected area"},
+  {id:"as-16",name:"Roof",cost:1100.00,unit:"225 sqft L&M"},
+  {id:"as-17",name:"Plumbing",cost:1000.00,unit:"variable"},
+  {id:"as-18",name:"Electrical Panel Swap to 200A",cost:2350.00,unit:"ea."},
+  {id:"as-19",name:"Full Electrical Rewire (to Studs)",cost:5.65,unit:"sqft"},
+  {id:"as-20",name:"Full Electrical Rewire (leaving Drywall)",cost:9.15,unit:"sqft"},
+  {id:"as-21",name:"Wall Insulation (to Studs)",cost:1.20,unit:"sqft"},
+  {id:"as-22",name:"Attic Insulation",cost:1225.00,unit:"1,600 sqft house"},
+  {id:"as-23",name:"New Drywall to Studs (L&M)",cost:5.20,unit:"sqft"},
+  {id:"as-24",name:"Aluminum Wiring",cost:2450.00,unit:"variable"},
+  {id:"ex-01",name:"Fence Repair — Chain Link / Wood Gate",cost:225.00,unit:"variable"},
+  {id:"ex-02",name:"Fence Repair — Chain Link",cost:275.00,unit:"LF"},
+  {id:"ex-03",name:"Fence Repair — Privacy 6ft",cost:30.00,unit:"LF"},
+  {id:"ex-04",name:"Landscaping",cost:450.00,unit:"variable"},
+  {id:"ex-05",name:"Vinyl Siding (10'x10')",cost:300.00,unit:"square"},
+  {id:"ex-06",name:"Tuck Pointing",cost:225.00,unit:"variable"},
+  {id:"ex-07",name:"Exterior Paint",cost:2.60,unit:"sqft"},
+  {id:"ex-08",name:"Exterior Wood Repair",cost:525.00,unit:"variable"},
+  {id:"ex-09",name:"Siding Repair (10'x10')",cost:975.00,unit:"section"},
+  {id:"ex-10",name:"Tree Trimming",cost:450.00,unit:"variable"},
+  {id:"ex-11",name:"Tree Removal (w/o stump)",cost:1450.00,unit:"tree"},
+  {id:"ex-12",name:"Stump Grinding",cost:250.00,unit:"stump"},
+  {id:"ex-13",name:"Aluminum Window Paint (Int/Ext)",cost:700.00,unit:"house"},
+  {id:"ex-14",name:"Windows (3x5 sash)",cost:425.00,unit:"ea."},
+  {id:"ex-15",name:"Window Repair — Non-Insulated (6x6+)",cost:35.00,unit:"sf"},
+  {id:"ex-16",name:"Window Repair — Insulated (6x6+)",cost:40.00,unit:"sf"},
+  {id:"ex-17",name:"Aluminum Framed Window Pane",cost:100.00,unit:"pane"},
+  {id:"ex-18",name:"Guttering",cost:4.15,unit:"LF"},
+  {id:"ex-19",name:"Concrete w/ Demo",cost:200.00,unit:"sqft"},
+  {id:"ex-20",name:"Mowing (summer, every 2 weeks)",cost:45.00,unit:"mowing"},
+  {id:"ex-21",name:"Garage Door — 1 Car",cost:975.00,unit:"ea."},
+  {id:"ex-22",name:"Garage Door — 2 Car (Installed)",cost:1225.00,unit:"ea."},
+  {id:"ex-23",name:"Garage Conversion",cost:8850.00,unit:"ea."}
+];
+
+// ========== GROUP/SECTION DEFINITIONS ==========
+const ROOM_TYPES = {
+  interior: { name: "Interior / General", singleton: true, groups: [
+    { id: "flooring", name: "Flooring", items: ["ig-01","ig-02","ig-03","ig-04","ig-05","ig-06"] },
+    { id: "paint", name: "Paint & Wall Repair", items: ["ig-07","ig-08","ig-09"] },
+    { id: "doors", name: "Doors", items: ["ig-10","ig-11","ig-12","ig-13","ig-14","ig-15","ig-16","ig-17","ig-18","ig-19"] },
+    { id: "pest", name: "Pest Control", items: ["ig-23","ig-24"] },
+  ]},
+  kitchen: { name: "Kitchen", singleton: false, groups: [
+    { id: "cabinets", name: "Cabinets", items: ["kt-01","kt-02","kt-03","kt-04","kt-05"] },
+    { id: "countertops", name: "Countertops & Tile", items: ["kt-06","kt-07","kt-08","kt-09","kt-10","kt-11"] },
+    { id: "appliances", name: "Appliances", items: ["kt-12","kt-13","kt-14","kt-15","kt-16","kt-17"] },
+  ]},
+  bathroom: { name: "Bathroom", singleton: false, groups: [
+    { id: "vanity", name: "Vanity & Countertop", items: ["ba-01","ba-02","ba-03","ba-04","ba-14","ba-15","ba-16"] },
+    { id: "tubshower", name: "Tub & Shower", items: ["ba-07","ba-08","ba-09","ba-10","ba-11","ba-12","ba-13"] },
+    { id: "tile", name: "Tile", items: ["ba-05","ba-06"] },
+  ]},
+  systems: { name: "Systems & Structure", singleton: true, groups: [
+    { id: "hvac", name: "HVAC", items: ["as-01","as-02","as-03","as-04","as-05","as-06","as-07","as-08","as-09"] },
+    { id: "electrical", name: "Electrical", items: ["as-10","as-11","as-18","as-19","as-20","as-24"] },
+    { id: "structural", name: "Structural", items: ["as-12","as-13","as-14","as-15","as-16","as-17"] },
+    { id: "insulation", name: "Insulation & Drywall", items: ["as-21","as-22","as-23"] },
+  ]},
+  exterior: { name: "Exterior", singleton: true, groups: [
+    { id: "fence", name: "Fence", items: ["ex-01","ex-02","ex-03","ex-04"] },
+    { id: "siding", name: "Siding", items: ["ex-05","ex-06","ex-07","ex-08","ex-09"] },
+    { id: "windows", name: "Windows", items: ["ex-13","ex-14","ex-15","ex-16","ex-17","ex-18"] },
+    { id: "garage", name: "Garage", items: ["ex-19","ex-21","ex-22","ex-23"] },
+    { id: "trees", name: "Trees", items: ["ex-10","ex-11","ex-12","ex-20"] },
+  ]},
+  bedroom: { name: "Bedroom", singleton: false, groups: [
+    { id: "flooring", name: "Flooring", items: ["ig-01","ig-02","ig-03","ig-04","ig-05","ig-06"] },
+    { id: "paint", name: "Paint", items: ["ig-07","ig-08","ig-09"] },
+    { id: "doors", name: "Doors", items: ["ig-10","ig-11","ig-12","ig-13"] },
+    { id: "closet", name: "Closet", items: ["ig-12","ig-19"] },
+  ]},
+  living: { name: "Living / Common Areas", singleton: false, groups: [
+    { id: "flooring", name: "Flooring", items: ["ig-01","ig-02","ig-03","ig-04","ig-05","ig-06"] },
+    { id: "paint", name: "Paint", items: ["ig-07","ig-08","ig-09"] },
+    { id: "doors", name: "Doors", items: ["ig-10","ig-11","ig-12","ig-13"] },
+    { id: "lighting", name: "Lighting", items: ["ig-22"] },
+  ]},
+};
+
+// Misc items that belong to general section
+const MISC_ITEMS = ["ig-20","ig-21","ig-25","ig-26","ig-27","ig-28"];
+
+// ========== APP STATE ==========
+let state = {
+  projects: [],
+  activeProjectId: null,
+  activeTab: 'projects',
+  globalPrices: null, // null means use DEFAULT_PRICES
+};
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem('spark_estimator_state');
+    if (saved) { state = JSON.parse(saved); }
+    const gp = localStorage.getItem('spark_global_prices');
+    if (gp) { state.globalPrices = JSON.parse(gp); }
+  } catch(e) { console.error('Failed to load state', e); }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem('spark_estimator_state', JSON.stringify({
+      projects: state.projects,
+      activeProjectId: state.activeProjectId,
+      activeTab: state.activeTab,
+    }));
+    if (state.globalPrices) {
+      localStorage.setItem('spark_global_prices', JSON.stringify(state.globalPrices));
+    }
+  } catch(e) { console.error('Failed to save state', e); }
+}
+
+function getPrice(itemId, project) {
+  // Per-project override first
+  if (project && project.priceOverrides && project.priceOverrides[itemId] !== undefined) {
+    return project.priceOverrides[itemId];
+  }
+  // Custom items
+  if (project && project.customItems) {
+    const custom = project.customItems.find(c => c.id === itemId);
+    if (custom) return custom.cost;
+  }
+  // Global override
+  if (state.globalPrices) {
+    const gp = state.globalPrices.find(p => p.id === itemId);
+    if (gp) return gp.cost;
+  }
+  // Default
+  const dp = DEFAULT_PRICES.find(p => p.id === itemId);
+  return dp ? dp.cost : 0;
+}
+
+function getItemInfo(itemId) {
+  // Check custom items in active project first
+  const project = getActiveProject();
+  if (project && project.customItems) {
+    const custom = project.customItems.find(c => c.id === itemId);
+    if (custom) return custom;
+  }
+  if (state.globalPrices) {
+    const gp = state.globalPrices.find(p => p.id === itemId);
+    if (gp) return gp;
+  }
+  return DEFAULT_PRICES.find(p => p.id === itemId) || { id: itemId, name: itemId, cost: 0, unit: 'ea.' };
+}
+
+function getActiveProject() {
+  return state.projects.find(p => p.id === state.activeProjectId) || null;
+}
+
+function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
+
+function formatCurrency(n) { return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+function numOnly(e) {
+  const ch = String.fromCharCode(e.which || e.keyCode);
+  if (!/[0-9.]/.test(ch)) { e.preventDefault(); return false; }
+  return true;
+}
+
+// ========== PROJECT MANAGEMENT ==========
+function createProject(name) {
+  const project = {
+    id: generateId(),
+    name: name || 'New Project',
+    createdAt: new Date().toISOString(),
+    rooms: [
+      { id: generateId(), type: 'interior', instance: 1 },
+      { id: generateId(), type: 'kitchen', instance: 1 },
+      { id: generateId(), type: 'bathroom', instance: 1 },
+      { id: generateId(), type: 'systems', instance: 1 },
+      { id: generateId(), type: 'exterior', instance: 1 },
+    ],
+    lineItems: {}, // { "roomId-groupId-itemId": { qty: 0, checked: false } }
+    noActionGroups: {}, // { "roomId-groupId": true }
+    priceOverrides: {},
+    photos: [], // { id, dataUrl, timestamp, note }
+    customItems: [], // { id, name, cost, unit, section }
+    deal: { arv: 0, purchasePrice: 0, holdingCosts: 0 },
+  };
+  state.projects.push(project);
+  state.activeProjectId = project.id;
+  saveState();
+  return project;
+}
+
+function deleteProject(id) {
+  state.projects = state.projects.filter(p => p.id !== id);
+  if (state.activeProjectId === id) {
+    state.activeProjectId = state.projects.length > 0 ? state.projects[0].id : null;
+  }
+  saveState();
+}
+
+// ========== CALCULATION ==========
+function calculateTotal(project) {
+  if (!project) return 0;
+  let total = 0;
+  Object.entries(project.lineItems).forEach(([key, val]) => {
+    if (val.qty > 0) {
+      const itemId = key.split('-').slice(2).join('-');
+      const cost = getPrice(itemId, project);
+      total += val.qty * cost;
+    }
+  });
+  return total;
+}
+
+function calculateProgress(project) {
+  if (!project) return { completed: 0, total: 0, percent: 0 };
+  let totalGroups = 0;
+  let completedGroups = 0;
+  
+  project.rooms.forEach(room => {
+    const roomType = ROOM_TYPES[room.type];
+    if (!roomType) return;
+    roomType.groups.forEach(group => {
+      totalGroups++;
+      const groupKey = `${room.id}-${group.id}`;
+      // Check if "no action" is set
+      if (project.noActionGroups[groupKey]) { completedGroups++; return; }
+      // Check if any item has qty > 0
+      const hasItem = group.items.some(itemId => {
+        const key = `${room.id}-${group.id}-${itemId}`;
+        return project.lineItems[key] && project.lineItems[key].qty > 0;
+      });
+      if (hasItem) completedGroups++;
+    });
+  });
+  
+  const percent = totalGroups > 0 ? Math.round((completedGroups / totalGroups) * 100) : 0;
+  return { completed: completedGroups, total: totalGroups, percent };
+}
+
+// ========== UI RENDERING ==========
+function switchTab(tab) {
+  state.activeTab = tab;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  render();
+}
+
+function updateHeader() {
+  const project = getActiveProject();
+  const isProjectsTab = state.activeTab === 'projects';
+  const total = isProjectsTab ? 0 : calculateTotal(project);
+  document.getElementById('header-total').textContent = formatCurrency(total);
+  
+  const progress = calculateProgress(project);
+  document.getElementById('progress-bar').style.width = (isProjectsTab ? 0 : progress.percent) + '%';
+  document.getElementById('progress-text').textContent = project && !isProjectsTab ? `${progress.percent}% Complete (${progress.completed}/${progress.total} groups)` : '0% Complete';
+  
+  // Show/hide progress bar when no project or on projects tab
+  const show = (project && !isProjectsTab) ? '' : 'none';
+  document.getElementById('progress-container').style.display = show;
+  document.getElementById('progress-text').style.display = show;
+}
+
+function render() {
+  const main = document.getElementById('main-content');
+  updateHeader();
+  
+  switch(state.activeTab) {
+    case 'projects': renderProjects(main); break;
+    case 'estimate': renderEstimate(main); break;
+    case 'photos': renderPhotos(main); break;
+    case 'deal': renderDeal(main); break;
+    case 'export': renderExport(main); break;
+  }
+}
+
+// ========== PROJECTS TAB ==========
+function renderProjects(container) {
+  let html = '<div class="card"><h2 style="font-size:18px;font-weight:700;margin:0 0 12px;">Projects</h2>';
+  
+  if (state.projects.length === 0) {
+    html += '<p style="color:var(--spark-gray);font-size:14px;">No projects yet. Create one to get started.</p>';
+  } else {
+    html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+    state.projects.forEach(p => {
+      const total = calculateTotal(p);
+      const progress = calculateProgress(p);
+      const isActive = p.id === state.activeProjectId;
+      html += `<div style="padding:12px;border-radius:8px;border:1.5px solid ${isActive ? 'var(--spark-orange)' : '#e5e7eb'};background:${isActive ? '#fff7ed' : 'white'};cursor:pointer;" onclick="selectProject('${p.id}')">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><div style="font-weight:600;font-size:14px;">${p.name}</div>
+          <div style="font-size:12px;color:var(--spark-gray);">${formatCurrency(total)} · ${progress.percent}% done</div></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();renameProject('${p.id}')">✏️</button>
+            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();confirmDeleteProject('${p.id}')">🗑️</button>
+          </div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+  
+  html += `<button class="btn btn-primary btn-block" style="margin-top:16px;" onclick="promptNewProject()">+ New Project</button>`;
+  html += '</div>';
+  
+  // Settings section
+  html += `<div class="card"><h3 style="font-size:15px;font-weight:600;margin:0 0 12px;">⚙️ Global Price Settings</h3>
+    <p style="font-size:13px;color:var(--spark-gray);margin:0 0 12px;">Upload a CSV to update default pricing across all projects.</p>
+    <input type="file" id="csv-upload" accept=".csv" onchange="handleCSVUpload(event)" style="display:none;">
+    <button class="btn btn-secondary btn-block btn-sm" onclick="document.getElementById('csv-upload').click()">Upload Price CSV</button>
+    ${state.globalPrices ? '<button class="btn btn-danger btn-block btn-sm" style="margin-top:8px;" onclick="resetGlobalPrices()">Reset to Default Prices</button>' : ''}
+  </div>`;
+  
+  container.innerHTML = html;
+}
+
+function promptNewProject() {
+  const name = prompt('Project name:', 'New Property');
+  if (name) { createProject(name); switchTab('estimate'); }
+}
+
+function selectProject(id) {
+  state.activeProjectId = id;
+  saveState();
+  switchTab('estimate');
+}
+
+function renameProject(id) {
+  const p = state.projects.find(x => x.id === id);
+  if (!p) return;
+  const name = prompt('Rename project:', p.name);
+  if (name) { p.name = name; saveState(); render(); }
+}
+
+function confirmDeleteProject(id) {
+  if (confirm('Delete this project? This cannot be undone.')) { deleteProject(id); render(); }
+}
+
+function handleCSVUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const lines = text.split(/\r?\n/);
+    const prices = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      // Parse CSV line handling quoted fields
+      const fields = [];
+      let current = '';
+      let inQuotes = false;
+      for (let c = 0; c < line.length; c++) {
+        const ch = line[c];
+        if (ch === '"') { inQuotes = !inQuotes; }
+        else if (ch === ',' && !inQuotes) { fields.push(current.trim()); current = ''; }
+        else { current += ch; }
+      }
+      fields.push(current.trim());
+      if (fields.length >= 4) {
+        const cost = parseFloat(fields[2]);
+        if (!isNaN(cost)) {
+          prices.push({ id: fields[0], name: fields[1], cost: cost, unit: fields[3] });
+        }
+      }
+    }
+    if (prices.length > 0) {
+      state.globalPrices = prices;
+      saveState();
+      alert(prices.length + ' prices updated!');
+      render();
+    } else {
+      alert('No valid prices found in CSV. Make sure format is: id,name,cost,unit');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function resetGlobalPrices() {
+  state.globalPrices = null;
+  localStorage.removeItem('spark_global_prices');
+  saveState(); render();
+}
+
+// ========== ESTIMATE TAB ==========
+let activeSectionIdx = 0;
+
+function getSections(project) {
+  // Build an ordered list of sections from the project's rooms
+  const sections = [];
+  const sectionOrder = ['interior','kitchen','bathroom','bedroom','living','systems','exterior'];
+  sectionOrder.forEach(type => {
+    const rooms = project.rooms.filter(r => r.type === type);
+    rooms.forEach(room => {
+      const rt = ROOM_TYPES[room.type];
+      const label = rt.singleton ? rt.name : `${rt.name} ${room.instance}`;
+      sections.push({ room, type, label, groups: rt.groups });
+    });
+  });
+  // Add Misc as last section
+  sections.push({ room: { id: 'misc', type: 'misc' }, type: 'misc', label: 'Miscellaneous', groups: [{ id: 'misc', name: 'Misc / General', items: MISC_ITEMS }] });
+  return sections;
+}
+
+function renderEstimate(container) {
+  const project = getActiveProject();
+  if (!project) {
+    container.innerHTML = '<div class="card" style="text-align:center;padding:40px 20px;"><p style="color:var(--spark-gray);font-size:14px;">Select or create a project first.</p><button class="btn btn-primary" onclick="switchTab(\'projects\')">Go to Projects</button></div>';
+    return;
+  }
+
+  const sections = getSections(project);
+  if (activeSectionIdx >= sections.length) activeSectionIdx = sections.length - 1;
+  if (activeSectionIdx < 0) activeSectionIdx = 0;
+  const currentSection = sections[activeSectionIdx];
+
+  let html = '';
+
+  // Room management bar
+  html += '<div class="card" style="padding:12px;">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
+  html += '<div style="font-size:13px;font-weight:600;">Rooms</div>';
+  html += `<select class="input" onchange="addRoom(this.value);this.value='';" style="font-size:12px;padding:6px 10px;width:auto;">
+    <option value="">+ Add Room</option>
+    <option value="bathroom">+ Bathroom</option>
+    <option value="kitchen">+ Kitchen</option>
+    <option value="bedroom">+ Bedroom</option>
+    <option value="living">+ Living / Common Area</option>
+  </select>`;
+  html += '</div>';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
+  project.rooms.forEach(room => {
+    const rt = ROOM_TYPES[room.type];
+    const label = rt.singleton ? rt.name : `${rt.name} ${room.instance}`;
+    html += `<span class="room-chip"><span>${label}</span>${!rt.singleton ? `<span class="remove-room" onclick="event.stopPropagation();removeRoom('${room.id}')">×</span>` : ''}</span>`;
+  });
+  html += '</div></div>';
+
+  // Section tabs (horizontal scroll)
+  html += '<div class="section-tabs">';
+  sections.forEach((sec, idx) => {
+    html += `<button class="section-tab ${idx === activeSectionIdx ? 'active' : ''}" onclick="goToSection(${idx})">${sec.label}</button>`;
+  });
+  html += '</div>';
+
+  // Section label
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 4px;">';
+  html += `<div class="section-title" style="margin:0;">${currentSection.label}</div>`;
+  html += '</div>';
+
+  // Groups and line items for current section
+  currentSection.groups.forEach(group => {
+    const groupKey = `${currentSection.room.id}-${group.id}`;
+    const isNoAction = project.noActionGroups[groupKey];
+    const isOpen = !isNoAction;
+
+    html += '<div class="card" style="padding:0;overflow:hidden;">';
+
+    // Group header
+    html += `<div class="group-header-new" onclick="toggleGroup('${groupKey}')">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="chevron ${isOpen ? 'open' : ''}" id="chev-${groupKey}">›</span>
+        <h3>${group.name}</h3>
+      </div>
+    </div>`;
+
+    html += `<div class="group-items-new ${isNoAction ? 'hidden' : ''}" id="group-${groupKey}">`;
+
+    // No action needed option
+    html += `<div class="line-item-card ${isNoAction ? 'selected no-action-selected' : ''}" onclick="toggleNoAction('${currentSection.room.id}','${group.id}')">
+      <div class="item-radio ${isNoAction ? 'checked' : ''}"></div>
+      <div class="item-info"><div class="item-name" style="font-style:italic;color:var(--spark-gray);">No action needed</div></div>
+    </div>`;
+
+    // Line items
+    group.items.forEach(itemId => {
+      const info = getItemInfo(itemId);
+      const key = `${currentSection.room.id}-${group.id}-${itemId}`;
+      const lineItem = project.lineItems[key] || { qty: 0 };
+      const cost = getPrice(itemId, project);
+      const total = lineItem.qty * cost;
+      const isChecked = lineItem.qty > 0;
+
+      html += `<div class="line-item-card ${isChecked ? 'selected' : ''}">
+        <div class="item-radio ${isChecked ? 'checked' : ''}" onclick="toggleItem('${key}')"></div>
+        <div class="item-info" onclick="toggleItem('${key}')">
+          <div class="item-name">${info.name}</div>
+          <div class="item-cost">${formatCurrency(cost)} / ${info.unit}</div>
+        </div>
+        <div class="item-qty-area">
+          <input type="number" inputmode="decimal" pattern="[0-9]*" class="qty-input" value="${lineItem.qty || ''}" min="0" step="any" placeholder="0"
+            onkeypress="return numOnly(event)" onchange="updateQty('${key}',this.value)" oninput="updateQty('${key}',this.value)">
+          <div class="item-line-total">${total > 0 ? formatCurrency(total) : ''}</div>
+        </div>
+      </div>`;
+    });
+
+    // Custom items for this group
+    if (project.customItems) {
+      project.customItems.filter(ci => ci.roomId === currentSection.room.id && ci.groupId === group.id).forEach(ci => {
+        const key = `${currentSection.room.id}-${group.id}-${ci.id}`;
+        const lineItem = project.lineItems[key] || { qty: 0 };
+        const total = lineItem.qty * ci.cost;
+        const isChecked = lineItem.qty > 0;
+
+        html += `<div class="line-item-card ${isChecked ? 'selected' : ''}">
+          <div class="item-radio ${isChecked ? 'checked' : ''}" onclick="toggleItem('${key}')"></div>
+          <div class="item-info" onclick="toggleItem('${key}')">
+            <div class="item-name">${ci.name} <span style="font-size:10px;color:var(--spark-gray);">(custom)</span></div>
+            <div class="item-cost">${formatCurrency(ci.cost)} / ${ci.unit}</div>
+          </div>
+          <div class="item-qty-area">
+            <input type="number" inputmode="decimal" pattern="[0-9]*" class="qty-input" value="${lineItem.qty || ''}" min="0" step="any" placeholder="0"
+              onkeypress="return numOnly(event)" onchange="updateQty('${key}',this.value)" oninput="updateQty('${key}',this.value)">
+            <div class="item-line-total">${total > 0 ? formatCurrency(total) : ''}</div>
+          </div>
+          <button style="background:none;border:none;color:var(--spark-danger);font-size:16px;cursor:pointer;padding:4px;" onclick="removeCustomItem('${ci.id}')">🗑</button>
+        </div>`;
+      });
+    }
+
+    // Add custom item
+    html += `<div style="padding:10px 16px;"><button class="btn btn-sm btn-secondary" style="font-size:12px;" onclick="addCustomItem('${currentSection.room.id}','${group.id}')">+ Add Item</button></div>`;
+    html += '</div></div>';
+  });
+
+  // Previous / Next buttons
+  html += '<div class="nav-buttons">';
+  html += `<button class="btn btn-secondary nav-prev ${activeSectionIdx === 0 ? 'disabled' : ''}" onclick="goToSection(${activeSectionIdx - 1})" ${activeSectionIdx === 0 ? 'disabled' : ''}>← Previous</button>`;
+  if (activeSectionIdx === sections.length - 1) {
+    html += `<button class="btn btn-primary nav-next" onclick="switchTab('photos')">Photos →</button>`;
+  } else {
+    html += `<button class="btn btn-primary nav-next" onclick="goToSection(${activeSectionIdx + 1})">Next →</button>`;
+  }
+  html += '</div>';
+
+  container.innerHTML = html;
+
+  // Scroll active tab into view
+  setTimeout(() => {
+    const activeTab = container.querySelector('.section-tab.active');
+    if (activeTab) activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, 50);
+}
+
+function goToSection(idx) {
+  const project = getActiveProject();
+  if (!project) return;
+  const sections = getSections(project);
+  if (idx < 0 || idx >= sections.length) return;
+  activeSectionIdx = idx;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function toggleItem(key) {
+  const project = getActiveProject();
+  if (!project) return;
+  const li = project.lineItems[key];
+  if (li && li.qty > 0) {
+    delete project.lineItems[key];
+  } else {
+    project.lineItems[key] = { qty: 1 };
+  }
+  saveState();
+  render();
+}
+
+function updateQty(key, value) {
+  const project = getActiveProject();
+  if (!project) return;
+  const sanitized = value.replace(/[^0-9.]/g, '');
+  const qty = parseFloat(sanitized) || 0;
+  if (qty > 0) {
+    project.lineItems[key] = { qty };
+  } else {
+    delete project.lineItems[key];
+  }
+  saveState();
+  updateHeader();
+}
+
+function toggleGroup(groupKey) {
+  const el = document.getElementById('group-' + groupKey);
+  const chev = document.getElementById('chev-' + groupKey);
+  if (el) { el.classList.toggle('hidden'); }
+  if (chev) { chev.classList.toggle('open'); }
+}
+
+function toggleNoAction(roomId, groupId) {
+  const project = getActiveProject();
+  if (!project) return;
+  const key = `${roomId}-${groupId}`;
+  project.noActionGroups[key] = !project.noActionGroups[key];
+  saveState();
+  render();
+}
+
+function addRoom(type) {
+  if (!type) return;
+  const project = getActiveProject();
+  if (!project) return;
+  const existing = project.rooms.filter(r => r.type === type);
+  const instance = existing.length + 1;
+  project.rooms.push({ id: generateId(), type, instance });
+  saveState();
+  render();
+}
+
+function removeRoom(roomId) {
+  const project = getActiveProject();
+  if (!project) return;
+  if (!confirm('Remove this room?')) return;
+  project.rooms = project.rooms.filter(r => r.id !== roomId);
+  // Clean up line items for this room
+  Object.keys(project.lineItems).forEach(key => {
+    if (key.startsWith(roomId + '-')) delete project.lineItems[key];
+  });
+  Object.keys(project.noActionGroups).forEach(key => {
+    if (key.startsWith(roomId + '-')) delete project.noActionGroups[key];
+  });
+  saveState();
+  render();
+}
+
+function addCustomItem(roomId, groupId) {
+  const name = prompt('Item name:');
+  if (!name) return;
+  const cost = parseFloat(prompt('Unit cost ($):', '0')) || 0;
+  const unit = prompt('Unit type (sqft, ea., etc.):', 'ea.') || 'ea.';
+  const id = 'custom-' + generateId();
+  const project = getActiveProject();
+  if (!project) return;
+  if (!project.customItems) project.customItems = [];
+  project.customItems.push({ id, name, cost, unit, roomId, groupId });
+  // Auto-set qty to 1
+  const key = `${roomId}-${groupId}-${id}`;
+  project.lineItems[key] = { qty: 1 };
+  saveState();
+  render();
+}
+
+function removeCustomItem(itemId) {
+  const project = getActiveProject();
+  if (!project) return;
+  if (!confirm('Remove this custom item?')) return;
+  project.customItems = (project.customItems || []).filter(c => c.id !== itemId);
+  // Remove line item entries for this custom item
+  Object.keys(project.lineItems).forEach(key => {
+    if (key.endsWith('-' + itemId)) delete project.lineItems[key];
+  });
+  saveState();
+  render();
+}
+
+// ========== PHOTOS TAB ==========
+function renderPhotos(container) {
+  const project = getActiveProject();
+  if (!project) {
+    container.innerHTML = '<div class="card" style="text-align:center;padding:40px 20px;"><p style="color:var(--spark-gray);">Select a project first.</p></div>';
+    return;
+  }
+  
+  let html = '<div class="card">';
+  html += '<h2 style="font-size:18px;font-weight:700;margin:0 0 12px;">📷 Photos</h2>';
+  html += '<p style="font-size:13px;color:var(--spark-gray);margin:0 0 12px;">Capture serial numbers, damage, and condition photos.</p>';
+  
+  html += `<input type="file" id="photo-input" accept="image/*" capture="environment" onchange="handlePhoto(event)" style="display:none;" multiple>`;
+  html += `<button class="btn btn-primary btn-block" onclick="document.getElementById('photo-input').click()">📷 Take Photo</button>`;
+  html += '</div>';
+  
+  if (project.photos && project.photos.length > 0) {
+    html += '<div class="card"><div style="font-size:14px;font-weight:600;margin-bottom:12px;">' + project.photos.length + ' photo(s)</div>';
+    html += '<div class="photo-grid">';
+    project.photos.forEach((photo, idx) => {
+      html += `<div class="photo-thumb">
+        <img src="${photo.dataUrl}" alt="Photo ${idx+1}" onclick="viewPhoto(${idx})">
+        <button class="remove-photo" onclick="removePhoto(${idx})">×</button>
+      </div>`;
+    });
+    html += '</div></div>';
+  }
+  
+  container.innerHTML = html;
+}
+
+function handlePhoto(event) {
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
+  const project = getActiveProject();
+  if (!project) return;
+  if (!project.photos) project.photos = [];
+  
+  Array.from(files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      // Compress image
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const maxW = 1200;
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = h * (maxW / w); w = maxW; }
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        project.photos.push({ id: generateId(), dataUrl, timestamp: new Date().toISOString(), note: '' });
+        saveState();
+        render();
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
+
+function removePhoto(idx) {
+  const project = getActiveProject();
+  if (!project) return;
+  project.photos.splice(idx, 1);
+  saveState();
+  render();
+}
+
+function viewPhoto(idx) {
+  const project = getActiveProject();
+  if (!project || !project.photos[idx]) return;
+  const photo = project.photos[idx];
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.onclick = () => overlay.remove();
+  overlay.innerHTML = `<div style="max-width:95vw;max-height:90vh;"><img src="${photo.dataUrl}" style="max-width:100%;max-height:85vh;border-radius:8px;"></div>`;
+  document.body.appendChild(overlay);
+}
+
+// ========== DEAL ANALYZER TAB (Creative Addition) ==========
+function renderDeal(container) {
+  const project = getActiveProject();
+  if (!project) {
+    container.innerHTML = '<div class="card" style="text-align:center;padding:40px 20px;"><p style="color:var(--spark-gray);">Select a project first.</p></div>';
+    return;
+  }
+  
+  const repairCost = calculateTotal(project);
+  const deal = project.deal || { arv: 0, purchasePrice: 0, holdingCosts: 0 };
+  const totalCost = deal.purchasePrice + repairCost + deal.holdingCosts;
+  const profit = deal.arv - totalCost;
+  const roi = totalCost > 0 ? ((profit / totalCost) * 100) : 0;
+  const maxOffer = (deal.arv * 0.7) - repairCost; // 70% rule
+  const passesRule = deal.purchasePrice > 0 && deal.purchasePrice <= maxOffer;
+  
+  let html = '<div class="card">';
+  html += '<h2 style="font-size:18px;font-weight:700;margin:0 0 4px;">💰 Deal Analyzer</h2>';
+  html += '<p style="font-size:13px;color:var(--spark-gray);margin:0 0 16px;">Estimate profit using the 70% rule.</p>';
+  
+  html += `<div style="margin-bottom:12px;">
+    <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">After Repair Value (ARV)</label>
+    <input type="number" class="input" value="${deal.arv || ''}" placeholder="e.g. 180000" onchange="updateDeal('arv',this.value)">
+  </div>`;
+  html += `<div style="margin-bottom:12px;">
+    <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">Purchase Price</label>
+    <input type="number" class="input" value="${deal.purchasePrice || ''}" placeholder="e.g. 95000" onchange="updateDeal('purchasePrice',this.value)">
+  </div>`;
+  html += `<div style="margin-bottom:12px;">
+    <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">Holding Costs (financing, taxes, utilities)</label>
+    <input type="number" class="input" value="${deal.holdingCosts || ''}" placeholder="e.g. 5000" onchange="updateDeal('holdingCosts',this.value)">
+  </div>`;
+  html += '</div>';
+  
+  // Results card
+  html += '<div class="card">';
+  html += '<h3 style="font-size:15px;font-weight:600;margin:0 0 12px;">Analysis</h3>';
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div style="text-align:center;padding:12px;background:#f9fafb;border-radius:8px;">
+      <div style="font-size:12px;color:var(--spark-gray);">Repair Cost</div>
+      <div style="font-size:16px;font-weight:700;color:var(--spark-orange);">${formatCurrency(repairCost)}</div>
+    </div>
+    <div style="text-align:center;padding:12px;background:#f9fafb;border-radius:8px;">
+      <div style="font-size:12px;color:var(--spark-gray);">Total Investment</div>
+      <div style="font-size:16px;font-weight:700;">${formatCurrency(totalCost)}</div>
+    </div>
+    <div style="text-align:center;padding:12px;background:#f9fafb;border-radius:8px;">
+      <div style="font-size:12px;color:var(--spark-gray);">Projected Profit</div>
+      <div style="font-size:16px;font-weight:700;color:${profit >= 0 ? 'var(--spark-success)' : 'var(--spark-danger)'};">${formatCurrency(profit)}</div>
+    </div>
+    <div style="text-align:center;padding:12px;background:#f9fafb;border-radius:8px;">
+      <div style="font-size:12px;color:var(--spark-gray);">ROI</div>
+      <div style="font-size:16px;font-weight:700;">${roi.toFixed(1)}%</div>
+    </div>
+  </div>`;
+  
+  // 70% Rule
+  html += `<div style="margin-top:16px;padding:12px;border-radius:8px;background:${passesRule ? '#d1fae5' : (deal.arv > 0 ? '#fee2e2' : '#f9fafb')};">
+    <div style="font-size:13px;font-weight:600;">70% Rule Max Offer: ${formatCurrency(Math.max(0, maxOffer))}</div>
+    <div style="font-size:12px;color:var(--spark-gray);margin-top:4px;">(ARV × 70%) − Repairs = Max Purchase Price</div>
+    ${deal.purchasePrice > 0 ? `<div style="font-size:13px;font-weight:600;margin-top:8px;color:${passesRule ? '#065f46' : '#991b1b'};">${passesRule ? '✓ Deal passes the 70% rule' : '✗ Purchase price exceeds 70% rule'}</div>` : ''}
+  </div>`;
+  html += '</div>';
+  
+  container.innerHTML = html;
+}
+
+function updateDeal(field, value) {
+  const project = getActiveProject();
+  if (!project) return;
+  if (!project.deal) project.deal = { arv: 0, purchasePrice: 0, holdingCosts: 0 };
+  project.deal[field] = parseFloat(value) || 0;
+  saveState();
+  render();
+}
+
+// ========== EXPORT TAB ==========
+function renderExport(container) {
+  const project = getActiveProject();
+  if (!project) {
+    container.innerHTML = '<div class="card" style="text-align:center;padding:40px 20px;"><p style="color:var(--spark-gray);">Select a project first.</p></div>';
+    return;
+  }
+  
+  const total = calculateTotal(project);
+  const photoCount = (project.photos || []).length;
+  
+  let html = '<div class="card">';
+  html += '<h2 style="font-size:18px;font-weight:700;margin:0 0 4px;">📤 Export Estimate</h2>';
+  html += `<p style="font-size:13px;color:var(--spark-gray);margin:0 0 16px;">Download a ZIP with the Excel cost breakdown${photoCount > 0 ? ` and ${photoCount} photo(s)` : ''}.</p>`;
+  html += `<div style="padding:16px;background:#f9fafb;border-radius:8px;text-align:center;margin-bottom:16px;">
+    <div style="font-size:13px;color:var(--spark-gray);">Grand Total</div>
+    <div style="font-size:28px;font-weight:700;color:var(--spark-orange);">${formatCurrency(total)}</div>
+    <div style="font-size:13px;color:var(--spark-gray);margin-top:4px;">${project.name}</div>
+  </div>`;
+  html += `<button class="btn btn-primary btn-block" onclick="exportProject()" style="font-size:16px;padding:14px;">⬇️ Download ZIP</button>`;
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+async function exportProject() {
+  const project = getActiveProject();
+  if (!project) return;
+
+  try {
+    const zip = new JSZip();
+
+    // Style definitions
+    const titleStyle = { font: { bold: true, color: { rgb: "FFFFFF" }, sz: 14 }, fill: { fgColor: { rgb: "1a1a2e" } }, alignment: { horizontal: "center", vertical: "center" }, border: { top: { style: "thin", color: { rgb: "E85D04" } }, bottom: { style: "thin", color: { rgb: "E85D04" } }, left: { style: "thin", color: { rgb: "E85D04" } }, right: { style: "thin", color: { rgb: "E85D04" } } } };
+    const subtitleStyle = { font: { sz: 11, color: { rgb: "666666" } }, alignment: { horizontal: "center" } };
+    const sectionHeaderStyle = { font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 }, fill: { fgColor: { rgb: "E85D04" } } };
+    const colHeaderStyle = { font: { bold: true, sz: 10 }, border: { bottom: { style: "thin", color: { rgb: "999999" } } } };
+    const dataStyle = { font: { sz: 10 } };
+    const currencyStyle = { font: { sz: 10 }, numFmt: "$#,##0.00" };
+    const sectionTotalStyle = { font: { bold: true, color: { rgb: "E85D04" }, sz: 10 } };
+    const sectionTotalCurrencyStyle = { font: { bold: true, color: { rgb: "E85D04" }, sz: 10 }, numFmt: "$#,##0.00" };
+    const grandTotalStyle = { font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12 }, fill: { fgColor: { rgb: "1a1a2e" } }, alignment: { horizontal: "center" } };
+    const grandTotalCurrencyStyle = { font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12 }, fill: { fgColor: { rgb: "1a1a2e" } }, numFmt: "$#,##0.00" };
+
+    const rows = [];
+    const cellStyles = {}; // "A1" -> style
+    const merges = [];
+
+    function addRow(cells, styles) {
+      const rowIdx = rows.length;
+      rows.push(cells);
+      if (styles) {
+        const cols = ['A','B','C','D','E'];
+        cells.forEach((_, colIdx) => {
+          if (colIdx < cols.length) {
+            const ref = cols[colIdx] + (rowIdx + 1);
+            cellStyles[ref] = styles[colIdx] || styles[0] || dataStyle;
+          }
+        });
+      }
+      return rowIdx;
+    }
+
+    // Row 1: Title
+    let r = addRow(['SPARK EQUITY GROUP — REPAIR ESTIMATE', '', '', '', ''], [titleStyle, titleStyle, titleStyle, titleStyle, titleStyle]);
+    merges.push({ s: { r: r, c: 0 }, e: { r: r, c: 4 } });
+
+    // Row 2: Property & Date
+    const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    r = addRow([`Property: ${project.name}    Date: ${dateStr}`, '', '', '', ''], [subtitleStyle, subtitleStyle, subtitleStyle, subtitleStyle, subtitleStyle]);
+    merges.push({ s: { r: r, c: 0 }, e: { r: r, c: 4 } });
+
+    // Blank row
+    addRow(['', '', '', '', '']);
+
+    let grandTotal = 0;
+
+    // Process each section
+    const sections = getSections(project);
+    sections.forEach(section => {
+      const sectionItems = [];
+      section.groups.forEach(group => {
+        group.items.forEach(itemId => {
+          const key = `${section.room.id}-${group.id}-${itemId}`;
+          const li = project.lineItems[key];
+          if (li && li.qty > 0) {
+            const info = getItemInfo(itemId);
+            const cost = getPrice(itemId, project);
+            const lineTotal = li.qty * cost;
+            sectionItems.push({ name: info.name, unit: info.unit, cost, qty: li.qty, total: lineTotal });
+          }
+        });
+      });
+
+      if (sectionItems.length === 0) return;
+
+      // Section header (orange)
+      r = addRow([section.label.toUpperCase(), '', '', '', ''], [sectionHeaderStyle, sectionHeaderStyle, sectionHeaderStyle, sectionHeaderStyle, sectionHeaderStyle]);
+      merges.push({ s: { r: r, c: 0 }, e: { r: r, c: 4 } });
+
+      // Column headers
+      addRow(['Repair Item', 'Unit', 'Unit Cost', 'Qty', 'Estimate'], [colHeaderStyle, colHeaderStyle, colHeaderStyle, colHeaderStyle, colHeaderStyle]);
+
+      // Data rows
+      let sectionTotal = 0;
+      sectionItems.forEach(item => {
+        addRow([item.name, item.unit, item.cost, item.qty, item.total], [dataStyle, dataStyle, currencyStyle, dataStyle, currencyStyle]);
+        sectionTotal += item.total;
+      });
+      grandTotal += sectionTotal;
+
+      // Section total
+      addRow([`${section.label} Total`, '', '', '', sectionTotal], [sectionTotalStyle, sectionTotalStyle, sectionTotalStyle, sectionTotalStyle, sectionTotalCurrencyStyle]);
+
+      // Blank row
+      addRow(['', '', '', '', '']);
+    });
+
+    // Grand total row
+    r = addRow(['', 'TOTAL ESTIMATE', '', '', grandTotal], [grandTotalStyle, grandTotalStyle, grandTotalStyle, grandTotalStyle, grandTotalCurrencyStyle]);
+    merges.push({ s: { r: r, c: 0 }, e: { r: r, c: 3 } });
+
+    // Create worksheet
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!merges'] = merges;
+    ws['!cols'] = [{ wch: 35 }, { wch: 15 }, { wch: 12 }, { wch: 8 }, { wch: 14 }];
+
+    // Apply styles
+    Object.entries(cellStyles).forEach(([ref, style]) => {
+      if (ws[ref]) { ws[ref].s = style; }
+    });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Estimate');
+    const xlsxData = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    zip.file(`Repair-Estimate-${project.name}.xlsx`, xlsxData);
+
+    // Add photos
+    if (project.photos && project.photos.length > 0) {
+      const photosFolder = zip.folder('photos');
+      project.photos.forEach((photo, idx) => {
+        const base64 = photo.dataUrl.split(',')[1];
+        photosFolder.file(`photo_${idx + 1}.jpg`, base64, { base64: true });
+      });
+    }
+
+    // Generate and download
+    const content = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Repair-Estimate-${project.name}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+  } catch(e) {
+    alert('Export failed: ' + e.message);
+    console.error(e);
+  }
+}
+
+// ========== INITIALIZATION ==========
+loadState();
+state.activeTab = 'projects'; // Always start on Projects tab
+// Sync nav button highlights
+document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'projects'));
+render();
+
+// Service worker disabled during development
+</script>
+</body>
+</html>
