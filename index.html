@@ -25,25 +25,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 </style>
 </head>
 <body>
-<script>
-// Force unregister all service workers immediately
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(function(registrations) {
-    for (var i = 0; i < registrations.length; i++) {
-      registrations[i].unregister();
-    }
-  });
-  if (navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage({type: 'SKIP_WAITING'});
-  }
-}
-// Clear all caches
-if ('caches' in window) {
-  caches.keys().then(function(names) {
-    for (var i = 0; i < names.length; i++) { caches.delete(names[i]); }
-  });
-}
-</script>
 <!-- Header with running total -->
 <header id="app-header" style="background: var(--spark-dark); color: white; padding: 12px 16px; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;">
   <div style="display: flex; align-items: center; gap: 10px;">
@@ -65,23 +46,31 @@ if ('caches' in window) {
 <!-- Bottom Navigation -->
 <nav style="position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e5e7eb; display: flex; z-index: 200; padding-bottom: env(safe-area-inset-bottom);">
   <button class="nav-btn active" data-tab="projects" onclick="switchTab('projects')">
-    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-5l-2-2H5a2 2 0 00-2 2z"/></svg>
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-5l-2-2H5a2 2 0 00-2 2z"/></svg>
     <span>Projects</span>
   </button>
   <button class="nav-btn" data-tab="estimate" onclick="switchTab('estimate')">
-    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
     <span>Estimate</span>
   </button>
   <button class="nav-btn" data-tab="photos" onclick="switchTab('photos')">
-    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
     <span>Photos</span>
   </button>
+  <button class="nav-btn" data-tab="notes" onclick="switchTab('notes')">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+    <span>Notes</span>
+  </button>
   <button class="nav-btn" data-tab="deal" onclick="switchTab('deal')">
-    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
     <span>Deal</span>
   </button>
+  <button class="nav-btn" data-tab="compare" onclick="switchTab('compare')">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    <span>Compare</span>
+  </button>
   <button class="nav-btn" data-tab="export" onclick="switchTab('export')">
-    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
     <span>Export</span>
   </button>
 </nav>
@@ -408,6 +397,7 @@ function createProject(name) {
     priceOverrides: {},
     photos: [], // { id, dataUrl, timestamp, note }
     customItems: [], // { id, name, cost, unit, section }
+    notes: '', // free-form project notes
     deal: { arv: 0, purchasePrice: 0, holdingCosts: 0 },
   };
   state.projects.push(project);
@@ -495,7 +485,9 @@ function render() {
     case 'projects': renderProjects(main); break;
     case 'estimate': renderEstimate(main); break;
     case 'photos': renderPhotos(main); break;
+    case 'notes': renderNotes(main); break;
     case 'deal': renderDeal(main); break;
+    case 'compare': renderCompare(main); break;
     case 'export': renderExport(main); break;
   }
 }
@@ -963,6 +955,127 @@ function viewPhoto(idx) {
   document.body.appendChild(overlay);
 }
 
+// ========== NOTES TAB ==========
+function renderNotes(container) {
+  const project = getActiveProject();
+  if (!project) {
+    container.innerHTML = '<div class="card" style="text-align:center;padding:40px 20px;"><p style="color:var(--spark-gray);">Select a project first.</p></div>';
+    return;
+  }
+
+  let html = '<div class="card">';
+  html += '<h2 style="font-size:18px;font-weight:700;margin:0 0 4px;">📝 Project Notes</h2>';
+  html += '<p style="font-size:13px;color:var(--spark-gray);margin:0 0 16px;">Record observations, issues, or reminders during the walkthrough.</p>';
+  html += `<textarea id="project-notes" class="input" style="min-height:200px;resize:vertical;font-size:14px;line-height:1.5;" placeholder="e.g. Foundation has cracks on east side. Owner mentioned roof was replaced in 2019. Garage door opener is broken..."
+    oninput="saveNotes(this.value)">${project.notes || ''}</textarea>`;
+  html += '</div>';
+
+  // Quick note templates
+  html += '<div class="card">';
+  html += '<div style="font-size:14px;font-weight:600;margin-bottom:10px;">Quick Notes</div>';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+  const templates = ['Foundation issues', 'Roof damage', 'Water damage', 'Mold present', 'Electrical concerns', 'Plumbing issues', 'HVAC not working', 'Needs full gut', 'Cosmetic only', 'Occupied - schedule access', 'HOA property', 'Permit required'];
+  templates.forEach(t => {
+    html += `<button class="btn btn-sm btn-secondary" style="font-size:11px;" onclick="appendNote('${t}')">${t}</button>`;
+  });
+  html += '</div></div>';
+
+  container.innerHTML = html;
+}
+
+function saveNotes(value) {
+  const project = getActiveProject();
+  if (!project) return;
+  project.notes = value;
+  saveState();
+}
+
+function appendNote(text) {
+  const project = getActiveProject();
+  if (!project) return;
+  const textarea = document.getElementById('project-notes');
+  const current = project.notes || '';
+  const separator = current.length > 0 ? '\n• ' : '• ';
+  project.notes = current + separator + text;
+  saveState();
+  if (textarea) textarea.value = project.notes;
+}
+
+// ========== PROJECT COMPARISON TAB (Creative Addition) ==========
+function renderCompare(container) {
+  if (state.projects.length < 2) {
+    container.innerHTML = '<div class="card" style="text-align:center;padding:40px 20px;"><h2 style="font-size:18px;font-weight:700;margin:0 0 8px;">📊 Project Comparison</h2><p style="color:var(--spark-gray);font-size:14px;">Create at least 2 projects to compare them side by side.</p></div>';
+    return;
+  }
+
+  let html = '<div class="card">';
+  html += '<h2 style="font-size:18px;font-weight:700;margin:0 0 4px;">📊 Project Comparison</h2>';
+  html += '<p style="font-size:13px;color:var(--spark-gray);margin:0 0 16px;">Compare costs and deals across properties to decide which ones to pursue.</p>';
+  html += '</div>';
+
+  // Comparison table
+  html += '<div class="card" style="overflow-x:auto;">';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+  html += '<thead><tr style="border-bottom:2px solid #e5e7eb;">';
+  html += '<th style="text-align:left;padding:8px 6px;font-weight:600;">Property</th>';
+  html += '<th style="text-align:right;padding:8px 6px;font-weight:600;">Repair Cost</th>';
+  html += '<th style="text-align:right;padding:8px 6px;font-weight:600;">ARV</th>';
+  html += '<th style="text-align:right;padding:8px 6px;font-weight:600;">Max Offer</th>';
+  html += '<th style="text-align:right;padding:8px 6px;font-weight:600;">Profit</th>';
+  html += '<th style="text-align:center;padding:8px 6px;font-weight:600;">Pass?</th>';
+  html += '</tr></thead><tbody>';
+
+  const projectData = state.projects.map(p => {
+    const repairCost = calculateTotal(p);
+    const deal = p.deal || { arv: 0, purchasePrice: 0, holdingCosts: 0 };
+    const totalCost = deal.purchasePrice + repairCost + deal.holdingCosts;
+    const profit = deal.arv - totalCost;
+    const maxOffer = (deal.arv * 0.7) - repairCost;
+    const passes = deal.purchasePrice > 0 && deal.purchasePrice <= maxOffer;
+    return { name: p.name, repairCost, arv: deal.arv, maxOffer, profit, passes, purchasePrice: deal.purchasePrice, totalCost };
+  });
+
+  // Sort by profit descending
+  projectData.sort((a, b) => b.profit - a.profit);
+
+  projectData.forEach((p, idx) => {
+    const rowBg = idx % 2 === 0 ? '#f9fafb' : 'white';
+    html += `<tr style="background:${rowBg};border-bottom:1px solid #f1f5f9;">`;
+    html += `<td style="padding:10px 6px;font-weight:500;">${p.name}</td>`;
+    html += `<td style="padding:10px 6px;text-align:right;">${formatCurrency(p.repairCost)}</td>`;
+    html += `<td style="padding:10px 6px;text-align:right;">${p.arv > 0 ? formatCurrency(p.arv) : '—'}</td>`;
+    html += `<td style="padding:10px 6px;text-align:right;">${p.arv > 0 ? formatCurrency(Math.max(0, p.maxOffer)) : '—'}</td>`;
+    html += `<td style="padding:10px 6px;text-align:right;color:${p.profit >= 0 ? 'var(--spark-success)' : 'var(--spark-danger)'};font-weight:600;">${p.arv > 0 ? formatCurrency(p.profit) : '—'}</td>`;
+    html += `<td style="padding:10px 6px;text-align:center;">${p.purchasePrice > 0 ? (p.passes ? '✅' : '❌') : '—'}</td>`;
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+
+  // Summary insights
+  const withData = projectData.filter(p => p.arv > 0);
+  if (withData.length > 0) {
+    const bestDeal = withData[0];
+    const totalRepairs = projectData.reduce((sum, p) => sum + p.repairCost, 0);
+    html += '<div class="card">';
+    html += '<h3 style="font-size:15px;font-weight:600;margin:0 0 12px;">Insights</h3>';
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">`;
+    html += `<div style="text-align:center;padding:12px;background:#f0fdf4;border-radius:8px;">
+      <div style="font-size:11px;color:var(--spark-gray);">Best Deal</div>
+      <div style="font-size:14px;font-weight:700;color:var(--spark-success);">${bestDeal.name}</div>
+      <div style="font-size:12px;color:var(--spark-gray);">${formatCurrency(bestDeal.profit)} profit</div>
+    </div>`;
+    html += `<div style="text-align:center;padding:12px;background:#f9fafb;border-radius:8px;">
+      <div style="font-size:11px;color:var(--spark-gray);">Total Repair Budget</div>
+      <div style="font-size:14px;font-weight:700;">${formatCurrency(totalRepairs)}</div>
+      <div style="font-size:12px;color:var(--spark-gray);">${projectData.length} properties</div>
+    </div>`;
+    html += `</div></div>`;
+  }
+
+  container.innerHTML = html;
+}
+
 // ========== DEAL ANALYZER TAB (Creative Addition) ==========
 function renderDeal(container) {
   const project = getActiveProject();
@@ -1208,7 +1321,12 @@ state.activeTab = 'projects'; // Always start on Projects tab
 document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'projects'));
 render();
 
-// Service worker disabled during development
+// Register service worker for offline support
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    console.log('SW registered:', reg.scope);
+  }).catch(err => console.log('SW registration failed:', err));
+}
 </script>
 </body>
 </html>
